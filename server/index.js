@@ -55,12 +55,12 @@ export function start({ port = Number(process.env.PORT) || 3000, quiet = false }
 
   server.on('upgrade', (req, socket, head) => {
     const pathname = (req.url || '').split('?')[0];
-    if (!isLanAddress(req.socket.remoteAddress) || pathname !== '/ws' || !originAllowed(req)) return socket.destroy();
+    if (!isLanAddress(req.socket.remoteAddress) || pathname !== '/ws' || !originAllowed(req) || wss.clients.size >= MAX_SOCKETS) return socket.destroy();
     wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
   });
 
   wss.on('connection', (ws) => {
-    if (wss.clients.size > MAX_SOCKETS) return ws.close();
+    ws.on('error', () => {});
     let id = null, missed = 0, msgs = 0, lastRespawn = 0;
     const reject = (reason) => { ws.send(JSON.stringify({ t: 'reject', reason })); ws.close(); };
     const joinTimer = setTimeout(() => { if (!id) ws.close(); }, JOIN_TIMEOUT_MS);
@@ -71,7 +71,6 @@ export function start({ port = Number(process.env.PORT) || 3000, quiet = false }
       ws.ping();
     }, 2000);
     ws.on('pong', () => { missed = 0; });
-    ws.on('error', () => {});
     ws.on('close', () => {
       clearTimeout(joinTimer); clearInterval(rateTimer); clearInterval(pingTimer);
       if (id) removeRobot(world, id);

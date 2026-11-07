@@ -1,6 +1,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import net from 'node:net';
 import { WebSocket } from 'ws';
 import { start } from '../server/index.js';
 
@@ -79,4 +80,23 @@ test('bad or missing Origin and wrong path are rejected', { timeout: 5000 }, asy
     const ws = new WebSocket(`ws://127.0.0.1:${port}/other`, { headers: { Origin: origin + port } });
     ws.on('open', res); ws.on('error', rej);
   }));
+});
+
+test('13th socket is refused before handshake and cannot crash the server', { timeout: 10000 }, async () => {
+  const cs = [];
+  for (let i = 0; i < 12; i++) cs.push(await client());
+  const reply = await new Promise((resolve, reject) => {
+    const s = net.connect(port, '127.0.0.1', () => {
+      s.write(`GET /ws HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nOrigin: ${origin + port}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n`);
+      setTimeout(() => s.write(Buffer.from([0x81, 0x01, 0x78])), 200); // unmasked frame
+    });
+    let buf = '';
+    s.on('data', (d) => { buf += d; });
+    s.on('error', () => {});
+    s.on('close', () => resolve(buf));
+    setTimeout(() => reject(new Error('socket stayed open')), 3000).unref();
+  });
+  assert.ok(!reply.includes('101'), 'handshake must be refused');
+  assert.equal(await get('/shared/field.js'), 200, 'server still alive');
+  for (const c of cs) c.ws.close();
 });
