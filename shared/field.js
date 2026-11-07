@@ -47,9 +47,11 @@ export const SPAWNS = {
   blue: [{ x: -6.0, y: 2.5, h: 0 }, { x: -6.0, y: 0, h: 0 }, { x: -6.0, y: -2.5, h: 0 }],
 };
 
-// three.js is Y-up: field (x, y, up) -> three (x, up, -y). The field GLB (glTF Y-up) already has x = field x,
-// z = -field y (AdvantageScope's x+90deg rotation to Z-up; tower/outpost bboxes agree with tags 29-32), so identity.
-export const FIELD_MODEL = { url: '/assets/field2026.glb', position: [0, 0, 0], rotation: [0, 0, 0], scale: 1 };
+// three.js is Y-up: field (x, y, up) -> three (x, up, -y). The CAD's raw glTF has x = +blue side: bump/skirt
+// plastic with base colour (0,0,1) is at glTF x>0 and red (1,0,0) at x<0 (`inspect-glb.mjs field colors`), i.e. the
+// CAD (and AdvantageScope's config frame) is 180 degrees from our frame (+x toward RED). So rotate the model
+// 180 deg about Y: (x, z) -> (-x, -z); blue then sits at -x. Obstacles/bumps/tower below are 180-degree symmetric.
+export const FIELD_MODEL = { url: '/assets/field2026.glb', position: [0, 0, 0], rotation: [0, Math.PI, 0], scale: 1 };
 
 // KitBot glTF: forward = +z, left = +x, up = +y (AdvantageScope config x+90, z+90 => forward = glTF z).
 // rotation.y = +pi/2 sends z -> three +x and x -> three -z (left); box center z = 0.299 -> x offset -0.299;
