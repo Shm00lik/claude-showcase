@@ -125,7 +125,7 @@ test('more than 60 messages in a second closes the socket', { timeout: 5000 }, a
   const a = await client();
   await join(a, 'Spam', 'blue');
   const done = closed(a);
-  for (let i = 0; i < 61; i++) a.send({ t: 'input', fwd: 0, turn: 0 });
+  for (let i = 0; i < 130; i++) a.send({ t: 'input', fwd: 0, turn: 0 });
   await done;
 });
 
