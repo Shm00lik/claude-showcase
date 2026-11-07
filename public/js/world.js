@@ -59,7 +59,28 @@ export function createWorld(canvas, fieldGroup, robotTemplate) {
   Object.assign(sun.shadow.camera, { left: -11, right: 11, top: 7, bottom: -7, near: 1, far: 40 });
   sun.shadow.radius = 4; sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
   scene.add(sun);
-  fieldGroup.traverse(o => { if (o.isMesh) o.receiveShadow = true; });
+  // Tame the CAD's metallic=1 materials; the carpet is the material with the most upward-facing area at floor level.
+  const area = new Map();
+  fieldGroup.traverse(o => {
+    if (!o.isMesh) return;
+    o.receiveShadow = true;
+    const m = o.material;
+    m.metalness = Math.min(m.metalness, 0.15); m.roughness = Math.max(m.roughness, 0.6);
+    const pos = o.geometry.attributes.position, idx = o.geometry.index, a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+    let sum = 0;
+    for (let i = 0; i < idx.count; i += 3) {
+      a.fromBufferAttribute(pos, idx.getX(i)); b.fromBufferAttribute(pos, idx.getX(i + 1)); c.fromBufferAttribute(pos, idx.getX(i + 2));
+      if (Math.max(a.y, b.y, c.y) > 0.02) continue;
+      b.sub(a); c.sub(a); sum += Math.abs(b.cross(c).y) / 2;
+    }
+    area.set(m, (area.get(m) || 0) + sum);
+  });
+  const carpet = [...area].sort((x, y) => y[1] - x[1])[0]?.[0];
+  if (carpet) { carpet.metalness = 0; carpet.roughness = 1; }
+  robotTemplate.traverse(o => {
+    if (!o.isMesh) return;
+    o.material.metalness = Math.min(o.material.metalness, 0.5); o.material.roughness = Math.max(o.material.roughness, 0.4);
+  });
   scene.add(fieldGroup);
 
   const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 200);
