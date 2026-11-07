@@ -42,7 +42,7 @@ const validName = (n) => {
   if (typeof n !== 'string') return null;
   const t = n.trim();
   const len = [...t].length;
-  return len >= 1 && len <= 16 && !/\p{Cc}/u.test(t) ? t : null;
+  return len >= 1 && len <= 16 && !/[\p{Cc}\p{Cf}\p{Cs}]/u.test(t) ? t : null;
 };
 
 export function start({ port = Number(process.env.PORT) || 3000, quiet = false } = {}) {

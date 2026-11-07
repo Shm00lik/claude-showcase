@@ -140,3 +140,11 @@ test('state times strictly increase even after an event-loop stall', { timeout: 
   for (let i = 1; i < times.length; i++) assert.ok(times[i] > times[i - 1], `dup/backwards time at ${i}: ${times[i - 1]} ${times[i]}`);
   await new Promise((r) => { a.ws.on('close', r); a.ws.close(); });
 });
+
+test('invisible-only and format-char names are rejected', { timeout: 5000 }, async () => {
+  for (const name of ['\u200b', '\u200b\u200b', 'a\u202eb']) {
+    const a = await client();
+    a.send({ t: 'join', name, team: 1, alliance: 'red' });
+    assert.deepEqual(await a.next((m) => m.t === 'reject'), { t: 'reject', reason: 'invalid' }, JSON.stringify(name));
+  }
+});
