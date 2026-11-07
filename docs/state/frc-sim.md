@@ -16,14 +16,21 @@ field CAD. Driving only. Git repo with worktrees/commits, README, visual example
 6. **Runtime deps: `three` and `ws` only**, three served locally. Alternative: CDN three.
 7. **Bumps are drivable with visual-only tilt; trench openings drivable.** Alternative: 3D physics engine.
 
-## Plan
-- [ ] Design review (independent)
-- [ ] G: field geometry (`shared/field.js`) — worktree `.worktrees/geometry`, branch `feat/geometry`
-- [ ] S: server + tests — `.worktrees/server`, `feat/server`
-- [ ] C: client — `.worktrees/client`, `feat/client`
-- [ ] Reviews per batch, fix rounds
-- [ ] Merge into `main` (--no-ff), gates: `npm test`, live 2-client browser check
-- [ ] Visual examples (screenshots in `docs/images/`), README
+8. **Host header must be an IP literal or `localhost`** (DNS-rebinding guard); opening by hostname (`mypc.local`) is refused. Alternative: allow-list hostnames.
+9. **Names reject all control/format characters** (`\p{Cc}\p{Cf}\p{Cs}`), which also rejects ZWJ emoji sequences. Alternative: allow ZWJ.
+10. **Front of the robot follows the AdvantageScope KitBot config**, although the CAD mesh named "Front Bumper" ends up at the rear. Alternative: flip ROBOT_MODEL yaw by π.
+
+## Plan (status)
+- [x] Design review (independent, Opus): READY AFTER FIXES → 13 findings applied to the design doc
+- [x] G: field geometry (`shared/field.js`), branch `feat/geometry` → merged f7f3263
+- [x] G1 fix: field CAD was 180° off (found in live test) → `fix/field-rotation` merged 3a4d268
+- [x] S: server, branch `feat/server`; review READY AFTER FIXES (H1 crash on 13th socket, M1 untested guards, L1-L3) → fixed, narrow re-review READY
+- [x] C: client, branch `feat/client`; live test found join crash (C1), chrome floor (C2); review READY AFTER FIXES (R1-R5) → fixed, lead-verified
+- [x] Merged to `main` (e19e3e6), gates green
+- [x] Visual examples (`docs/images/`), README
 
 ## Validation evidence
-(filled as work lands)
+- `npm test` on main e19e3e6: 34 tests, 34 pass, 0 fail.
+- Live run on main in Chrome (built-in browser, 1280x720): 6 robots (1 keyboard driver + 5 scripted ws clients) joined 3v3, driving/turning/collision with hub confirmed via server state (`W` from x=6,h=π → x=4.65; `A` → h 3.14→4.72; stopped at red hub edge x≈4.24+0.42).
+- From the LAN IP: `GET http://192.168.1.44:3000/` 200; KitBot GLB 200 `model/gltf-binary` 21,270,876 B; Host `evil.example` → 403; `/../package.json` → 404.
+- Not verified: frame rate (the browser pane was hidden, which throttles rAF to ~1 Hz; the 16-18 fps HUD reading is not meaningful); real gamepad; two physical machines on a LAN.
