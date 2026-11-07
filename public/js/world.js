@@ -106,7 +106,7 @@ export function createWorld(canvas, fieldGroup, robotTemplate) {
     model.traverse(o => {
       if (!o.isMesh) return;
       o.castShadow = true;
-      if (o.userData.bumper) o.material = bumperMats[r.alliance];
+      if (o.userData.bumper) o.material = bumperMats[r.alliance] || o.material;
     });
     root.add(model);
     const label = makeLabel(`${r.team} \u00b7 ${r.name}`, ALLIANCE[r.alliance]);

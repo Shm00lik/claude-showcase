@@ -17,7 +17,7 @@ export function readInput() {
   if (!enabled || !document.hasFocus() || document.hidden) return { fwd: 0, turn: 0 };
   let fwd = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0);
   let turn = (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0) - (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0);
-  const pad = [...(navigator.getGamepads?.() || [])].find(p => p && p.connected);
+  const pad = [...(navigator.getGamepads?.() || [])].find(p => p && p.connected && p.mapping === 'standard');
   if (pad) {
     const gf = dead(-(pad.axes[1] || 0)), gt = dead(-(pad.axes[2] || 0));
     if (gf) fwd = gf;

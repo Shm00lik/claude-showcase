@@ -46,7 +46,7 @@ export function mergeByMaterial(gltfScene, model) {
   });
   const out = new THREE.Group();
   for (const { material, geoms } of groups.values()) {
-    const mesh = new THREE.Mesh(mergeGeometries(geoms), material);
+    const mesh = new THREE.Mesh(mergeGeometries(geoms) ?? fail(), material);
     mesh.userData.bumper = !!material.userData.bumper;
     out.add(mesh);
     geoms.forEach(g => g.dispose());
@@ -66,7 +66,9 @@ export function mergeVertexColors(group) {
     g.setAttribute('color', new THREE.BufferAttribute(col, 3));
     geoms.push(g);
   }
-  const body = new THREE.Mesh(mergeGeometries(geoms), new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.4, roughness: 0.55 }));
+  const body = new THREE.Mesh(mergeGeometries(geoms) ?? fail(), new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.4, roughness: 0.55 }));
   out.add(body);
   return out;
 }
+
+function fail() { throw new Error('merge failed'); }

@@ -119,7 +119,7 @@ function sample() {
   const k = b.t > a.t ? Math.max(0, Math.min(1, (rt - a.t) / (b.t - a.t))) : 1;
   return b.robots.map(rb => {
     const ra = a.robots.find(r => r.id === rb.id);
-    if (!ra || Math.hypot(rb.x - ra.x, rb.y - ra.y) > 2) return rb; // new or respawned: no sliding
+    if (!ra || Math.hypot(rb.x - ra.x, rb.y - ra.y) > 0.5) return rb; // new or respawned: no sliding
     let dh = (rb.h - ra.h) % (2 * Math.PI);
     if (dh > Math.PI) dh -= 2 * Math.PI; else if (dh < -Math.PI) dh += 2 * Math.PI;
     return { ...rb, x: lerp(ra.x, rb.x, k), y: lerp(ra.y, rb.y, k), h: ra.h + dh * k };
@@ -185,5 +185,5 @@ function frame(now) {
   world.update(poses, myId, dt);
   calls = world.drawCalls();
   fpsAcc += dt; fpsN++;
-  if (fpsAcc >= 1) { $('fps').textContent = `${Math.round(fpsN / fpsAcc)} fps · ${calls} calls`; fpsAcc = fpsN = 0; }
+  if (fpsAcc >= 1) { $('fps').textContent = `${Math.round(fpsN / fpsAcc)} fps Â· ${calls} calls`; fpsAcc = fpsN = 0; }
 }
