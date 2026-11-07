@@ -149,7 +149,7 @@ addEventListener('keydown', e => {
 function enterGame() {
   inGame = true; setInputEnabled(true);
   joinEl.hidden = true; hud.hidden = false;
-  $('status').classList.remove('off'); $('status span').textContent = 'Connected';
+  $('status').classList.remove('off'); $('statusText').textContent = 'Connected';
   say(''); roster = ''; $('cam').textContent = world.cameraName;
   last = performance.now(); requestAnimationFrame(frame);
 }
