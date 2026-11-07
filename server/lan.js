@@ -19,3 +19,13 @@ export function originAllowed(req) {
   if (!origin || !host) return false;
   try { return new URL(origin).host === host; } catch { return false; }
 }
+
+// DNS-rebinding guard: Host must be an IP literal or localhost.
+export function hostAllowed(req) {
+  const host = req.headers.host;
+  if (typeof host !== 'string') return false;
+  const m = host.match(/^(\[[0-9a-f:.]+\]|[^:\s\[\]]+)(?::\d+)?$/i);
+  if (!m) return false;
+  const name = m[1].replace(/^\[|\]$/g, '');
+  return name.toLowerCase() === 'localhost' || net.isIP(name) !== 0;
+}

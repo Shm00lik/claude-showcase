@@ -148,3 +148,21 @@ test('invisible-only and format-char names are rejected', { timeout: 5000 }, asy
     assert.deepEqual(await a.next((m) => m.t === 'reject'), { t: 'reject', reason: 'invalid' }, JSON.stringify(name));
   }
 });
+
+test('non-IP Host header (DNS rebinding) gets 403 / destroyed upgrade', { timeout: 5000 }, async () => {
+  const status = await new Promise((res, rej) => http.get({ host: '127.0.0.1', port, path: '/shared/field.js', headers: { Host: 'evil.example' } }, (r) => { r.resume(); r.on('end', () => res(r.statusCode)); }).on('error', rej));
+  assert.equal(status, 403);
+  await assert.rejects(client({ Host: 'evil.example', Origin: 'http://evil.example' }));
+});
+
+test('injected LAN filter is wired into HTTP and upgrade', { timeout: 5000 }, async () => {
+  const s2 = await start({ port: 0, quiet: true, isLan: () => false });
+  try {
+    const status = await new Promise((res, rej) => http.get({ host: '127.0.0.1', port: s2.port, path: '/shared/field.js' }, (r) => { r.resume(); r.on('end', () => res(r.statusCode)); }).on('error', rej));
+    assert.equal(status, 403);
+    await assert.rejects(new Promise((res, rej) => {
+      const ws = new WebSocket(`ws://127.0.0.1:${s2.port}/ws`, { headers: { Origin: origin + s2.port } });
+      ws.on('open', res); ws.on('error', rej);
+    }));
+  } finally { await s2.close(); }
+});

@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { FIELD, ROBOT, OBSTACLES, SPAWNS } from '../shared/field.js';
-import { isLanAddress, originAllowed } from './lan.js';
+import { isLanAddress, originAllowed, hostAllowed } from './lan.js';
 import { createWorld, addRobot, removeRobot, setInput, respawn, step, snapshot, DT } from './sim.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -45,17 +45,17 @@ const validName = (n) => {
   return len >= 1 && len <= 16 && !/[\p{Cc}\p{Cf}\p{Cs}]/u.test(t) ? t : null;
 };
 
-export function start({ port = Number(process.env.PORT) || 3000, quiet = false } = {}) {
+export function start({ port = Number(process.env.PORT) || 3000, quiet = false, isLan = isLanAddress } = {}) {
   const world = createWorld({ field: FIELD, robot: ROBOT, obstacles: OBSTACLES, spawns: SPAWNS });
   const server = http.createServer((req, res) => {
-    if (!isLanAddress(req.socket.remoteAddress)) { res.writeHead(403); return res.end('LAN only'); }
+    if (!isLan(req.socket.remoteAddress) || !hostAllowed(req)) { res.writeHead(403); return res.end('LAN only'); }
     serveStatic(req, res);
   });
   const wss = new WebSocketServer({ noServer: true, maxPayload: 1024 });
 
   server.on('upgrade', (req, socket, head) => {
     const pathname = (req.url || '').split('?')[0];
-    if (!isLanAddress(req.socket.remoteAddress) || pathname !== '/ws' || !originAllowed(req) || wss.clients.size >= MAX_SOCKETS) return socket.destroy();
+    if (!isLan(req.socket.remoteAddress) || !hostAllowed(req) || pathname !== '/ws' || !originAllowed(req) || wss.clients.size >= MAX_SOCKETS) return socket.destroy();
     wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
   });
 

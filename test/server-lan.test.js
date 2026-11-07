@@ -22,3 +22,12 @@ test('originAllowed', { timeout: 5000 }, () => {
   assert.ok(!originAllowed(r('null', '192.168.1.5:3000')));
   assert.ok(!originAllowed(r('http://192.168.1.5:3000', undefined)));
 });
+
+import { hostAllowed } from '../server/lan.js';
+test('hostAllowed: IP literals and localhost only', { timeout: 5000 }, () => {
+  const h = (host) => hostAllowed({ headers: { host } });
+  for (const ok of ['192.168.1.5:3000', '127.0.0.1', 'localhost:3000', 'LOCALHOST', '[::1]:3000', '[fe80::1]:80'])
+    assert.ok(h(ok), ok);
+  for (const bad of ['evil.example', 'evil.example:3000', '192.168.1.5.evil.com', 'localhost.evil.com', '', undefined, 'a b'])
+    assert.ok(!h(bad), String(bad));
+});
