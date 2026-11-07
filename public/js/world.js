@@ -43,16 +43,19 @@ function makeLabel(text, color) {
 export function createWorld(canvas, fieldGroup, robotTemplate) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#8fb4d8');
-  scene.fog = new THREE.Fog('#8fb4d8', 40, 90);
+  scene.background = new THREE.Color('#1a2029');
+  scene.fog = new THREE.Fog('#1a2029', 40, 90);
   const pm = new THREE.PMREMGenerator(renderer);
   scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; // field/robot materials are metallic=1
-  scene.environmentIntensity = 0.55;
-  scene.add(new THREE.HemisphereLight('#dbeaff', '#4a4f57', 0.9));
-  const sun = new THREE.DirectionalLight('#fff4e0', 2.2);
+  scene.environmentIntensity = 0.25;
+  scene.add(new THREE.HemisphereLight('#dbeaff', '#4a4f57', 0.35));
+  const sun = new THREE.DirectionalLight('#fff4e0', 2.6);
   sun.position.set(6, 14, 5);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -76,7 +79,7 @@ export function createWorld(canvas, fieldGroup, robotTemplate) {
     area.set(m, (area.get(m) || 0) + sum);
   });
   const carpet = [...area].sort((x, y) => y[1] - x[1])[0]?.[0];
-  if (carpet) { carpet.metalness = 0; carpet.roughness = 1; }
+  if (carpet) { carpet.metalness = 0; carpet.roughness = 1; carpet.color.set('#4a4d52'); }
   robotTemplate.traverse(o => {
     if (!o.isMesh) return;
     o.material.metalness = Math.min(o.material.metalness, 0.5); o.material.roughness = Math.max(o.material.roughness, 0.4);
