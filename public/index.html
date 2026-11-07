@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FRC 2026 LAN Sim</title>
+<link rel="stylesheet" href="/css/style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "/vendor/three/build/three.module.js",
+  "three/addons/": "/vendor/three/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<main id="join" class="screen">
+  <form id="joinForm" class="card" novalidate autocomplete="off">
+    <h1>FRC 2026 <span>LAN Sim</span></h1>
+    <p class="sub">REBUILT field &middot; 2026 KitBot &middot; up to 3 per alliance</p>
+
+    <label>Name
+      <input id="name" maxlength="32" required>
+    </label>
+    <label>Team number
+      <input id="team" inputmode="numeric" maxlength="5" required>
+    </label>
+    <fieldset>
+      <legend>Alliance</legend>
+      <label class="pick red"><input type="radio" name="alliance" value="red" checked><span>Red</span></label>
+      <label class="pick blue"><input type="radio" name="alliance" value="blue"><span>Blue</span></label>
+    </fieldset>
+
+    <div id="loadBox">
+      <div class="bar"><div id="bar"></div></div>
+      <div id="loadText">Loading field and robot...</div>
+    </div>
+    <div id="msg" role="alert"></div>
+    <button id="drive" type="submit" disabled>Drive!</button>
+  </form>
+</main>
+
+<div id="hud" hidden>
+  <div id="status"><i></i><span>Connecting</span> <b id="fps"></b></div>
+  <ul id="players"></ul>
+  <div id="help">
+    <b>W/S</b> or <b>&uarr;/&darr;</b> drive &middot; <b>A/D</b> or <b>&larr;/&rarr;</b> turn &middot; gamepad: left stick drive, right stick turn<br>
+    <b>R</b> respawn &middot; <b>C</b> camera: <span id="cam">chase</span>
+  </div>
+</div>
+<script type="module" src="/js/main.js"></script>
+</body>
+</html>
