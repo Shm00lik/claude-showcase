@@ -52,7 +52,7 @@ Client → server:
 
 Server → client:
 - `{"t":"welcome","id":string}` after a valid join.
-- `{"t":"reject","reason":"full"|"invalid"}` then close.
+- `{"t":"reject","reason":"alliance_full"|"invalid"}` then close.
 - `{"t":"state","time":ms,"robots":[{"id","name","team","alliance","x","y","h"}]}` broadcast at 30 Hz.
 
 Server validates every message (shape, types, lengths); malformed → ignored (or `reject/invalid` for join).
