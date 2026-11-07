@@ -56,7 +56,7 @@ export function createWorld(canvas, fieldGroup, robotTemplate) {
   sun.position.set(6, 14, 5);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
-  Object.assign(sun.shadow.camera, { left: -11, right: 11, top: 7, bottom: -7, near: 1, far: 40 });
+  Object.assign(sun.shadow.camera, { left: -10, right: 10, top: 6, bottom: -6, near: 4, far: 32 });
   sun.shadow.radius = 4; sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
   scene.add(sun);
   // Tame the CAD's metallic=1 materials; the carpet is the material with the most upward-facing area at floor level.
@@ -164,6 +164,7 @@ export function createWorld(canvas, fieldGroup, robotTemplate) {
 
   return {
     update, resize,
+    drawCalls: () => renderer.info.render.calls,
     cycleCamera() { camMode = (camMode + 1) % CAMERAS.length; return CAMERAS[camMode]; },
     get cameraName() { return CAMERAS[camMode]; },
   };

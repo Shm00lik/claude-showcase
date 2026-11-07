@@ -1,5 +1,5 @@
 import { FIELD_MODEL, ROBOT_MODEL } from '/shared/field.js';
-import { loadGLB, mergeByMaterial } from './models.js';
+import { loadGLB, mergeByMaterial, mergeVertexColors } from './models.js';
 import { createWorld } from './world.js';
 import { readInput, setInputEnabled, clearInput } from './input.js';
 
@@ -50,7 +50,7 @@ async function loadAssets() {
     $('loadText').textContent = 'Preparing models...';
     await new Promise(requestAnimationFrame);
     const field = mergeByMaterial(f.scene, FIELD_MODEL);
-    const robot = mergeByMaterial(r.scene, ROBOT_MODEL);
+    const robot = mergeVertexColors(mergeByMaterial(r.scene, ROBOT_MODEL));
     if (!robot.children.some(m => m.userData.bumper)) console.warn('no bumper mesh found; robots will not be recoloured');
     world = createWorld($('view'), field, robot);
     $('bar').style.width = '100%';
@@ -172,7 +172,7 @@ function renderRoster(poses) {
   }
 }
 
-let last = 0, fpsAcc = 0, fpsN = 0;
+let last = 0, calls = 0, fpsAcc = 0, fpsN = 0;
 function frame(now) {
   if (!inGame) return;
   requestAnimationFrame(frame);
@@ -181,6 +181,7 @@ function frame(now) {
   const poses = sample();
   renderRoster(poses);
   world.update(poses, myId, dt);
+  calls = world.drawCalls();
   fpsAcc += dt; fpsN++;
-  if (fpsAcc >= 1) { $('fps').textContent = `${Math.round(fpsN / fpsAcc)} fps`; fpsAcc = fpsN = 0; }
+  if (fpsAcc >= 1) { $('fps').textContent = `${Math.round(fpsN / fpsAcc)} fps · ${calls} calls`; fpsAcc = fpsN = 0; }
 }

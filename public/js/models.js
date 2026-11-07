@@ -53,3 +53,20 @@ export function mergeByMaterial(gltfScene, model) {
   }
   return out;
 }
+
+// Collapses an already material-merged model into: one vertex-coloured mesh for opaque parts, plus the
+// bumper mesh and any transparent meshes kept separate. ~62 draw calls per robot -> 2-3.
+export function mergeVertexColors(group) {
+  const geoms = [], out = new THREE.Group();
+  for (const mesh of group.children) {
+    const m = mesh.material;
+    if (mesh.userData.bumper || m.transparent || m.opacity < 1) { out.add(mesh); continue; }
+    const g = mesh.geometry, n = g.attributes.position.count, col = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) m.color.toArray(col, i * 3);
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geoms.push(g);
+  }
+  const body = new THREE.Mesh(mergeGeometries(geoms), new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.4, roughness: 0.55 }));
+  out.add(body);
+  return out;
+}
