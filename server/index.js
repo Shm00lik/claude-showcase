@@ -102,16 +102,19 @@ export function start({ port = Number(process.env.PORT) || 3000, quiet = false }
     });
   });
 
-  let acc = 0, last = performance.now(), tick = 0;
+  let acc = 0, last = performance.now(), tick = 0, lastSent = 0;
   const loop = setInterval(() => {
     const now = performance.now();
     acc = Math.min(acc + (now - last) / 1000, 0.25);
     last = now;
+    let stepped = false;
     while (acc >= DT) {
       acc -= DT;
       step(world, DT);
-      if (++tick % 2 === 0) broadcast(now);
+      stepped = true;
+      tick++;
     }
+    if (stepped && tick - lastSent >= 2) { lastSent = tick; broadcast(now); } // one snapshot per interval, even after catch-up
   }, 1000 / 60);
   function broadcast(now) {
     const msg = JSON.stringify({ t: 'state', ...snapshot(world), time: Math.round(now) });

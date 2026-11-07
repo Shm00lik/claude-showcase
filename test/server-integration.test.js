@@ -128,3 +128,15 @@ test('more than 60 messages in a second closes the socket', { timeout: 5000 }, a
   for (let i = 0; i < 61; i++) a.send({ t: 'input', fwd: 0, turn: 0 });
   await done;
 });
+
+test('state times strictly increase even after an event-loop stall', { timeout: 10000 }, async () => {
+  const a = await client();
+  await join(a, 'Stall', 'blue');
+  await a.next((m) => m.t === 'state');
+  const t0 = Date.now(); while (Date.now() - t0 < 120); // force sim catch-up
+  await new Promise((r) => setTimeout(r, 200));
+  const times = a.msgs.filter((m) => m.t === 'state').map((m) => m.time);
+  assert.ok(times.length > 3);
+  for (let i = 1; i < times.length; i++) assert.ok(times[i] > times[i - 1], `dup/backwards time at ${i}: ${times[i - 1]} ${times[i]}`);
+  await new Promise((r) => { a.ws.on('close', r); a.ws.close(); });
+});
