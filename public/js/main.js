@@ -127,10 +127,12 @@ function sample() {
 }
 
 function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+let lastSent = 0;
 function pushInput(force) {
   const { fwd, turn } = readInput();
-  const key = `${fwd.toFixed(3)},${turn.toFixed(3)}`;
-  if (force || key !== sentKey) { sentKey = key; send({ t: 'input', fwd, turn }); }
+  const key = `${fwd.toFixed(3)},${turn.toFixed(3)}`, now = performance.now();
+  // on change at most every 50 ms (server drops sockets over 60 msg/s); the next frame retries
+  if (force || (key !== sentKey && now - lastSent >= 50)) { sentKey = key; lastSent = now; send({ t: 'input', fwd, turn }); }
 }
 // keepalive: server zeroes input after 300 ms of silence
 setInterval(() => { if (inGame) pushInput(true); }, 100);
