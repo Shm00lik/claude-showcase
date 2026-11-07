@@ -98,5 +98,33 @@ test('13th socket is refused before handshake and cannot crash the server', { ti
   });
   assert.ok(!reply.includes('101'), 'handshake must be refused');
   assert.equal(await get('/shared/field.js'), 200, 'server still alive');
-  for (const c of cs) c.ws.close();
+  await Promise.all(cs.map((c) => new Promise((r) => { c.ws.on('close', r); c.ws.close(); })));
+});
+
+const closed = (c) => new Promise((res, rej) => { c.ws.on('close', res); setTimeout(() => rej(new Error('not closed')), 3000).unref(); });
+
+test('repeat join is ignored (no second robot)', { timeout: 10000 }, async () => {
+  const a = await client();
+  await join(a, 'Dup', 'blue');
+  a.send({ t: 'join', name: 'Dup2', team: 5, alliance: 'red' });
+  await new Promise((r) => setTimeout(r, 150));
+  const m = await a.next((x) => x.t === 'state' && x.robots.some((r) => r.name === 'Dup') && x.robots.length >= 1);
+  const last = [...a.msgs].reverse().find((x) => x.t === 'state');
+  assert.equal(last.robots.filter((r) => r.name.startsWith('Dup')).length, 1);
+  assert.ok(m);
+  a.ws.close();
+});
+
+test('control-character name is rejected as invalid', { timeout: 5000 }, async () => {
+  const a = await client();
+  a.send({ t: 'join', name: 'bad\u0007name', team: 1, alliance: 'red' });
+  assert.deepEqual(await a.next((m) => m.t === 'reject'), { t: 'reject', reason: 'invalid' });
+});
+
+test('more than 60 messages in a second closes the socket', { timeout: 5000 }, async () => {
+  const a = await client();
+  await join(a, 'Spam', 'blue');
+  const done = closed(a);
+  for (let i = 0; i < 61; i++) a.send({ t: 'input', fwd: 0, turn: 0 });
+  await done;
 });
