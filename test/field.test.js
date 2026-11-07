@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { loadGlb } from '../tools/inspect-glb.mjs';
 import { FIELD, ROBOT, OBSTACLES, BUMPS, SPAWNS, FIELD_MODEL, ROBOT_MODEL, toThree } from '../shared/field.js';
 
 const corners = (x, y, len, wid, rot) => {
@@ -36,9 +37,8 @@ test('3 spawns per alliance, inside field, in own half, clear of obstacles and b
   }
 });
 
-test('toThree and model placement agree with tag 13 on the blue wall', () => {
+test('toThree maps tag 13 to the blue wall (-x)', () => {
   assert.deepEqual(toThree(-8.262, -3.37), { x: -8.262, z: 3.37 });
-  assert.deepEqual(FIELD_MODEL.rotation, [0, 0, 0]); // glb already has x = field x, z = -field y
   assert.equal(FIELD_MODEL.scale, 1);
   // heading h with rotation.y = h points along toThree(cos h, sin h): (cos h, -sin h)
   const h = 0.7, fwd = { x: Math.cos(h), z: -Math.sin(h) };
@@ -51,4 +51,21 @@ test('toThree and model placement agree with tag 13 on the blue wall', () => {
 test('robot dims plausible, bumps have positive peak', () => {
   assert.ok(ROBOT.length > 0.7 && ROBOT.length < 1 && ROBOT.width > 0.7 && ROBOT.width < 1);
   for (const b of BUMPS) assert.ok(b.height > 0.1 && b.height < 0.25);
+});
+
+test('CAD blue-coloured bump/skirt plastic ends up on the blue (-x) side after FIELD_MODEL', () => {
+  const { json, tris } = loadGlb(new URL('../public/assets/field2026.glb', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
+  const [, ry] = FIELD_MODEL.rotation;
+  assert.deepEqual([FIELD_MODEL.rotation[0], FIELD_MODEL.rotation[2]], [0, 0]);
+  const sum = { blue: 0, red: 0 };
+  for (const t of tris) {
+    if (!/Bump Plastic|Trench Side Skirt/.test(t.name)) continue;
+    const [r, g, b] = json.materials[t.mat].pbrMetallicRoughness.baseColorFactor;
+    const alliance = b > 0.9 && r < 0.1 ? 'blue' : r > 0.9 && b < 0.1 ? 'red' : null;
+    if (!alliance) continue;
+    const xw = ((t.v[0] + t.v[3] + t.v[6]) / 3) * Math.cos(ry) + ((t.v[2] + t.v[5] + t.v[8]) / 3) * Math.sin(ry); // three.js rotation.y
+    sum[alliance] += xw;
+  }
+  assert.ok(sum.blue < 0, 'blue plastic must be at -x');
+  assert.ok(sum.red > 0, 'red plastic must be at +x');
 });

@@ -42,7 +42,7 @@ export function loadGlb(path) {
         for (let k = 0; k < pos.length; k += 3) vs.push(new THREE.Vector3(pos[k], pos[k + 1], pos[k + 2]).applyMatrix4(w));
         for (let k = 0; k < idx.length; k += 3) {
           const a = vs[idx[k]], bb = vs[idx[k + 1]], c = vs[idx[k + 2]];
-          tris.push({ name: n.name || '', path: names, v: [a.x, a.y, a.z, bb.x, bb.y, bb.z, c.x, c.y, c.z] });
+          tris.push({ name: n.name || '', mat: p.material, path: names, v: [a.x, a.y, a.z, bb.x, bb.y, bb.z, c.x, c.y, c.z] });
         }
       }
     }
@@ -133,12 +133,13 @@ async function svg(g) {
   const o = [`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="sans-serif" font-size="11">`,
     `<rect width="${W}" height="${H}" fill="#fff"/>`,
     `<rect x="${X(-F.FIELD.length / 2)}" y="${Y(F.FIELD.width / 2)}" width="${F.FIELD.length * S}" height="${F.FIELD.width * S}" fill="none" stroke="#000"/>`];
+  // grid is in the raw CAD frame; FIELD_MODEL rotates it 180 deg about the vertical, so draw it flipped
   for (let j = 0; j < g.ny; j++) {
     let i = 0;
     while (i < g.nx) {
       if (!g.cells[j * g.nx + i]) { i++; continue; }
       const i0 = i; while (i < g.nx && g.cells[j * g.nx + i]) i++;
-      o.push(`<rect x="${X(i0 * g.cs - HX).toFixed(1)}" y="${Y((j + 1) * g.cs - HY).toFixed(1)}" width="${((i - i0) * g.cs * S).toFixed(1)}" height="${(g.cs * S).toFixed(1)}" fill="#ccc"/>`);
+      o.push(`<rect x="${X(HX - i * g.cs).toFixed(1)}" y="${Y(HY - j * g.cs).toFixed(1)}" width="${((i - i0) * g.cs * S).toFixed(1)}" height="${(g.cs * S).toFixed(1)}" fill="#ccc"/>`);
     }
   }
   const rect = (r, stroke) => o.push(`<g transform="translate(${X(r.x)} ${Y(r.y)}) rotate(${-r.rot * 180 / Math.PI})"><rect x="${-r.len * S / 2}" y="${-r.wid * S / 2}" width="${r.len * S}" height="${r.wid * S}" fill="none" stroke="${stroke}" stroke-width="2"/></g><text x="${X(r.x)}" y="${Y(r.y)}" fill="${stroke}" text-anchor="middle">${r.name}</text>`);
@@ -177,6 +178,16 @@ if (process.argv[1]?.endsWith('inspect-glb.mjs')) {
     const g = grid(tris, Number(mode === 'grid' ? a1 : 0) || 0.04);
     if (mode === 'grid') { fs.mkdirSync('tmp', { recursive: true }); fs.writeFileSync('tmp/grid.json', JSON.stringify(g)); }
     else await svg(g);
+  } else if (mode === 'colors') {
+    // base color of materials per side (x>0 / x<0) for nodes matching regex a1, e.g. "Hub Side Panel Vinyl|Bump Plastic"
+    const re = new RegExp(a1), j = loadGlb(`public/assets/${which === 'robot' ? 'kitbot2026' : 'field2026'}.glb`).json, res = {};
+    for (const t of tris) {
+      if (!re.test(t.name)) continue;
+      const m = j.materials[t.mat] || {}, c = (m.pbrMetallicRoughness?.baseColorFactor || []).slice(0, 3).map((v) => v.toFixed(2)).join(',');
+      const k = `${t.name.slice(0, 40)} | ${m.name} | rgb(${c}) | x${t.v[0] + t.v[3] + t.v[6] > 0 ? '>0' : '<0'}`;
+      res[k] = (res[k] || 0) + 1;
+    }
+    console.log(res);
   } else if (mode === 'profile') {
     const t2 = tris.filter((t) => !isFuel(t)), [fixed, from, to, step] = [+a2, +a3, +a4, +a5 || 0.05];
     for (let s = from; s <= to + 1e-9; s += step) console.log(s.toFixed(2), topHeight(t2, a1 === 'x' ? s : fixed, a1 === 'x' ? fixed : s).toFixed(3));
