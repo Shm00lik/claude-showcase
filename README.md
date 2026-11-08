@@ -1,18 +1,130 @@
+<div align="center">
+
 # FRC 2026 LAN Sim
 
-A multiplayer driving simulator for the **2026 FRC game (REBUILT)**. Up to six people on the same local
-network open a web page in Chrome, choose a name, team number and alliance, and drive a **2026 KitBot**
-around the **official 2026 field CAD** while seeing each other live. Robots **collect FUEL** by driving into it
-and **shoot it into their alliance's HUB** to score.
+**A multiplayer FRC robot simulator on the real 2026 REBUILT field, in your browser, on your LAN.**
 
-![Gameplay: 3v3, collecting and shooting FUEL](docs/media/gameplay.gif)
+Drive a 2026 KitBot, scoop up FUEL and shoot it into your HUB, with up to six friends on the same network.<br>
+No install for players: open a link in Chrome and drive.
 
-**Full 60-second gameplay video:** [docs/media/gameplay.mp4](docs/media/gameplay.mp4) (chase, driver-station and
-top-down cameras; one keyboard player plus five scripted bots).
+![Node 22+](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=nodedotjs&logoColor=white)
+![three.js](https://img.shields.io/badge/three.js-0.180-000000?logo=threedotjs)
+![Tests](https://img.shields.io/badge/tests-48%20passing-2ea44f)
+![LAN only](https://img.shields.io/badge/network-LAN%20only-informational)
+![Built with Claude](https://img.shields.io/badge/built%20with-Claude%20Code-D97757?logo=anthropic&logoColor=white)
 
-| Join screen | Driver-station camera | Top-down camera |
-|---|---|---|
-| ![join](docs/images/01-join-screen.jpg) | ![driver station](docs/images/03-driver-station-cam.jpg) | ![top-down](docs/images/04-top-down-cam.jpg) |
+<img src="docs/media/gameplay.gif" alt="3v3 gameplay: robots collect yellow FUEL and shoot it into the hub" width="820">
+
+**[▶ Watch the full 60-second gameplay video](docs/media/gameplay.mp4)**
+
+</div>
+
+---
+
+## Highlights
+
+- 🏟️ **Real field CAD:** FIRST's official 2026 REBUILT field, with hubs, bumps, trenches and towers you collide with.
+- 🤖 **Real robot CAD:** the official 2026 KitBot, bumpers recoloured red or blue by alliance.
+- 🟡 **Collect and shoot:** drive into FUEL with your front bumper, then hold Space to shoot it into your HUB.
+- 👥 **3v3 multiplayer:** a server-authoritative 60 Hz simulation, so every player sees the same match.
+- 🎥 **Three cameras:** chase, driver station (the real driver's view) and top-down.
+- 🎮 **Keyboard or gamepad.**
+- 🔒 **LAN only by design:** private addresses only, DNS-rebinding and cross-site WebSocket protection.
+- 📦 **Zero build step:** two runtime dependencies (`three`, `ws`), and it works on a LAN with no internet.
+
+## Gallery
+
+| Collecting FUEL | Shooting at the hub |
+|---|---|
+| ![collecting](docs/images/02-chase-collect.jpg) | ![shooting](docs/images/03-chase-shoot.jpg) |
+| **Driver-station camera** | **Join screen** |
+| ![driver station](docs/images/04-driver-station.jpg) | ![join](docs/images/01-join-screen.jpg) |
+
+<table>
+<tr>
+<td width="260"><img src="docs/media/top-down.gif" alt="top-down camera, sped up 2x" width="240"></td>
+<td>
+
+**Top-down camera** (sped up 2×).
+
+The red alliance scores in the red hub at the bottom and blue in the blue hub at the top. Robots collect FUEL
+in the neutral zone, return to their side over the bumps and shoot from the 2.5 m ring.
+
+Full-size still: [05-top-down.jpg](docs/images/05-top-down.jpg)
+
+</td>
+</tr>
+</table>
+
+---
+
+## ✨ Built by Claude, from these prompts
+
+This whole repository was written by **Claude Code (Claude Opus 5.5)** from the four prompts below, typed by the
+project owner and copied here word for word, typos and all. Nothing else was typed by a human: no code, no
+geometry, no tests, no docs.
+
+> **Prompt 1: build it**
+>
+> Build a multiplayer FRC simulator that lets users drive a simple robot in the 2026 FRC field.
+> Please use the real CAD of the field from 2026's season, and make the robots look pretty similar to a simple FRC robot from that year.
+> For now, the robots don't need to shoot any balls into the target, just drive.
+> The users can join by opening the site on Chrome. It does not need to be a program, just a website. Only LAN connections should be supported, nothing more.
+>
+> Init a git repo in this folder and make sure to split your work into worktrees and commits as needed Be organized.
+>
+> Please give me VISUAL EXAMPLES of the game at the end, and a detailed README.md file on how to run/use this project.
+>
+> Use /dev-manager to orchestrate your work.
+
+> **Prompt 2: add the game**
+>
+> Is it possible to add collecting and shooting balls at the target?
+> And, please show me a gameplay of the game, not just screenshots
+> Thank you!
+
+> **Prompt 3: show it off**
+>
+> please make this a git repo with beautiful README with screenshots and videos, and INCLUDE THE PROMPTS I gave you there to show whats the power of Claude!
+
+### What Claude did with them
+
+**Prompt 1: lead plus a team of subagents**
+
+- Acting as the lead (the `dev-manager` skill), Claude wrote a design contract, had it independently reviewed, and
+  split the work into file-disjoint batches. Each batch ran in its own **git worktree and branch** (geometry,
+  server, client) with its own implementer subagent.
+- It found the official field and KitBot CAD, then **measured the collision geometry from the CAD itself**
+  (`tools/inspect-glb.mjs`): it sliced the meshes at bumper height and checked the result against the AprilTag
+  positions.
+- Every batch got an **independent review by a separate agent**. One review found a crash a 13th LAN connection
+  could cause. **Live tests in a real browser** caught a field model rotated 180° and a crash on join.
+
+**Prompt 2: a second round, then a video**
+
+- Claude extended the wire contract and ran the server batch (ball physics, intake, shooting, scoring) and the
+  client batch (rendering, HUD, input) **in parallel**. It merged both and had the merged result reviewed.
+- That review found balls that could get stuck inside the towers forever. It was fixed, and the fix was proved by
+  sabotage: undo the fix, watch the new test go red, restore it.
+- For the video, Claude wrote a **recorder**: five AI bots plus a real Chrome window, driven by the same AI through
+  the Chrome DevTools Protocol, captured frame by frame and encoded with ffmpeg.
+
+**Prompt 3: this README**
+
+- The screenshots and GIFs come from that recording.
+
+**By the numbers:**
+
+| Metric | Count |
+|---|---|
+| Git commits, each with a clear message | 45+ |
+| Merges from feature branches | 10 |
+| Lines of JavaScript (server, client, tools, tests) | about 2,000 |
+| Automated tests | 48 |
+| Independent reviews | 6 |
+
+The design, every decision Claude made on the owner's behalf (with its alternative), the review findings and the
+validation evidence are all in [`docs/state/`](docs/state/).
 
 ---
 
@@ -170,7 +282,7 @@ tools/
 test/           node:test suites (sim, LAN filter, integration, field geometry)
 docs/
   images/       Screenshots
-  media/        Gameplay video and GIF
+  media/        Gameplay video and GIFs
   state/        Design doc and project state / decisions
 ```
 
