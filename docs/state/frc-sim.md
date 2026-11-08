@@ -48,7 +48,19 @@ contract, one review per batch, acceptance live before close.
 15. **No hub active/inactive shifts.**
 
 ### Plan (status)
-- [ ] S2 server (`feat/fuel-server`), C2 client (`feat/fuel-client`) in parallel worktrees
-- [ ] Review per batch, fix rounds
-- [ ] Merge, gates, live acceptance
-- [ ] Gameplay video (`docs/media/`), README
+- [x] S2 server (`feat/fuel-server`), C2 client (`feat/fuel-client`) in parallel worktrees
+- [x] Review (Opus) of the merged diff: READY AFTER FIXES (F1 MEDIUM balls stuck in towers; F3-F5 low) -> fixed, narrow re-review READY
+- [x] Merged via `feat/fuel` integration branch, gates green, live acceptance with recorder
+- [x] Gameplay video (`docs/media/gameplay.mp4`, `.gif`), recorder `tools/record-gameplay.mjs`, README
+
+### Validation evidence (v2)
+- `npm test` on feat/fuel: 48/48, run 4 times back to back, all green. The S2 implementer saw two unexplained
+  9-failure runs; not reproduced (likely load from the lead's concurrent Chrome recording on the same machine).
+- Reviewer ran a 36,000-step random sim (6 robots, 100 balls): held invariant holds, no NaN, no escapes,
+  0.34 ms/step, ~2.4 KB snapshots; shooter scores from 2.0-2.9 m.
+- Live: 60 s recording, 1 Chrome player (CDP keys) + 5 ws bots, ~56 fps in Chrome at 1280x720: red 72, blue 66.
+
+### Follow-ups
+- N1 (LOW): `server/sim.js` perimeter extension of obstacles for balls assumes rot 0; add `rot === 0 &&` if a
+  rotated wall-touching obstacle is ever added.
+- Not verified: gamepad shoot buttons (no controller), two physical machines.
