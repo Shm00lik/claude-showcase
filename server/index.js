@@ -5,7 +5,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
-import { FIELD, ROBOT, OBSTACLES, SPAWNS } from '../shared/field.js';
+import { FIELD, ROBOT, OBSTACLES, SPAWNS, FUEL, FUEL_START, HUBS, SHOOTER } from '../shared/field.js';
 import { isLanAddress, originAllowed, hostAllowed } from './lan.js';
 import { createWorld, addRobot, removeRobot, setInput, respawn, step, snapshot, DT } from './sim.js';
 
@@ -46,7 +46,7 @@ const validName = (n) => {
 };
 
 export function start({ port = Number(process.env.PORT) || 3000, quiet = false, isLan = isLanAddress } = {}) {
-  const world = createWorld({ field: FIELD, robot: ROBOT, obstacles: OBSTACLES, spawns: SPAWNS });
+  const world = createWorld({ field: FIELD, robot: ROBOT, obstacles: OBSTACLES, spawns: SPAWNS, fuel: FUEL, fuelStart: FUEL_START, hubs: HUBS, shooter: SHOOTER });
   const server = http.createServer((req, res) => {
     if (!isLan(req.socket.remoteAddress) || !hostAllowed(req)) { res.writeHead(403); return res.end('LAN only'); }
     serveStatic(req, res);
@@ -92,7 +92,7 @@ export function start({ port = Number(process.env.PORT) || 3000, quiet = false, 
       } else if (!id) {
         return;
       } else if (m.t === 'input') {
-        setInput(world, id, m.fwd, m.turn);
+        setInput(world, id, m.fwd, m.turn, m.shoot);
       } else if (m.t === 'respawn') {
         const now = Date.now();
         if (now - lastRespawn < 1000) return;

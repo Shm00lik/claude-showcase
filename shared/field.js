@@ -60,3 +60,18 @@ export const ROBOT_MODEL = { url: '/assets/kitbot2026.glb', position: [-0.299, 0
 
 // Field -> three.js world. Heading: group.rotation.y = h.
 export function toThree(x, y) { return { x, z: -y }; }
+
+// ---- FUEL (v2) ----
+export const FUEL = { radius: 0.075, pool: 100, capacity: 8 }; // 5.91 in ball; 100 balls total; 8 per robot
+// 10x10 grid, 0.3 m spacing, centred on (0,0) (neutral zone)
+export const FUEL_START = Array.from({ length: 100 }, (_, i) => ({ x: ((i % 10) - 4.5) * 0.3, y: (Math.floor(i / 10) - 4.5) * 0.3 }));
+// Measured with `node tools/inspect-glb.mjs field find Hub`: "Hub Funnel Side" (the opening's wall) spans y +-0.533 (flats of the
+// hexagon) and x +-0.613 about the hub centre (corners; 0.613*cos30 = 0.531) and tops out at h = 1.829 m. So top = rim height,
+// radius = inscribed (flat-to-centre) radius of the hexagonal opening.
+export const HUBS = [
+  { alliance: 'red', x: 3.645, y: 0, top: 1.829, radius: 0.531 },
+  { alliance: 'blue', x: -3.645, y: 0, top: 1.829, radius: 0.531 },
+];
+// Launch point in the robot frame (x fwd, z up), fixed pitch. speed solves z(d)=top for d = 2.5 - x = 2.3 m horizontal:
+// v^2 = g d^2 / (2 cos^2(a) (z + d tan a - top)); the ball is descending there (apex at t=0.55 s, crossing at 0.75 s).
+export const SHOOTER = { x: 0.2, z: 0.55, angle: 1.05, speed: 6.195 };
