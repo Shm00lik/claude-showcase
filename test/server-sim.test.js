@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { FUEL, FUEL_START, HUBS, SHOOTER, OBSTACLES, ROBOT, FIELD, SPAWNS } from '../shared/field.js';
 import { createWorld, addRobot, removeRobot, setInput, respawn, step, snapshot, DT } from '../server/sim.js';
 
 const params = (over = {}) => ({
@@ -138,6 +139,113 @@ test('snapshot lists robots', { timeout: 5000 }, () => {
   const w = mk(); join(w, 'a', 'red'); run(w, 0.1);
   const s = snapshot(w);
   assert.equal(s.robots.length, 1);
-  assert.deepEqual(Object.keys(s.robots[0]).sort(), ['alliance', 'h', 'id', 'name', 'team', 'x', 'y']);
+  assert.deepEqual(Object.keys(s.robots[0]).sort(), ['alliance', 'h', 'held', 'id', 'name', 'team', 'x', 'y']);
   assert.ok(s.time > 90);
+});
+
+// ---- FUEL ----
+const fw = (balls = [], over = {}) => createWorld({
+  field: { length: 16, width: 8 }, robot: { length: 1, width: 0.8, height: 0.5 }, obstacles: [], spawns: params().spawns,
+  fuel: { radius: 0.075, capacity: 8 }, fuelStart: balls, ...over,
+});
+const real = (over = {}) => createWorld({ field: FIELD, robot: ROBOT, obstacles: OBSTACLES, spawns: SPAWNS, fuel: FUEL, fuelStart: FUEL_START, hubs: HUBS, shooter: SHOOTER, ...over });
+const far = (n) => Array.from({ length: n }, (_, i) => ({ x: -7 + i * 0.3, y: 3.5 }));
+const give = (w, r, n) => { let k = 0; for (const b of w.balls) if (b.state === 'field' && k < n) { b.state = 'held'; b.owner = r.id; k++; } r.held = n; };
+const drive = (w, id, secs, fwd, turn, shoot) => { for (let i = 0; i < Math.round(secs / DT); i++) { setInput(w, id, fwd, turn, shoot); step(w, DT); } };
+
+test('ball in front of a driving robot is collected', { timeout: 5000 }, () => {
+  const w = fw([{ x: 1.5, y: 0.1 }]); const r = join(w, 'a'); place(r, 0, 0, 0);
+  drive(w, 'a', 1, 1, 0);
+  assert.equal(r.held, 1); assert.equal(w.balls[0].state, 'held');
+  assert.equal(snapshot(w).fuel[0], 0);
+});
+
+test('ball touching side or back is pushed, not collected', { timeout: 5000 }, () => {
+  for (const [bx, by] of [[0, 0.45], [0, -0.45], [-0.55, 0]]) {
+    const w = fw([{ x: bx, y: by }]); const r = join(w, 'a'); place(r, 0, 0, 0);
+    run(w, 0.1);
+    assert.equal(r.held, 0, `${bx},${by}`); assert.equal(w.balls[0].state, 'field');
+    assert.ok(Math.hypot(w.balls[0].x, w.balls[0].y) > 0.45, 'pushed out of the robot');
+  }
+});
+
+test('capacity 8 enforced', { timeout: 5000 }, () => {
+  const w = fw([...far(8), { x: 1.5, y: 0 }]); const r = join(w, 'a'); place(r, 0, 0, 0);
+  give(w, r, 8);
+  drive(w, 'a', 1, 1, 0);
+  assert.equal(r.held, 8); assert.equal(w.balls[8].state, 'field');
+});
+
+test('shoot from 2.5 m facing own hub scores; from 6 m does not', { timeout: 10000 }, () => {
+  const hub = HUBS[0];
+  const w = real({ fuelStart: far(3) }); const r = join(w, 'a', 'red'); place(r, hub.x - 2.5, 0, 0); give(w, r, 1);
+  drive(w, 'a', 2, 0, 0, true);
+  assert.deepEqual(w.score, { red: 1, blue: 0 });
+  const w2 = real({ fuelStart: far(3) }); const r2 = join(w2, 'a', 'red'); place(r2, hub.x - 6, 0, 0); give(w2, r2, 1);
+  drive(w2, 'a', 3, 0, 0, true);
+  assert.deepEqual(w2.score, { red: 0, blue: 0 });
+  assert.equal(w2.balls.filter((b) => b.state === 'field').length, 3, 'shot ball is back on the field');
+});
+
+test('scored ball sits in hub, then returns on the neutral side', { timeout: 10000 }, () => {
+  const hub = HUBS[0];
+  const w = real({ fuelStart: far(1) }); const r = join(w, 'a', 'red'); place(r, hub.x - 2.5, 0, 0); give(w, r, 1);
+  let t = 0;
+  while (w.balls[0].state !== 'hub' && t++ < 200) drive(w, 'a', DT, 0, 0, true);
+  assert.equal(w.balls[0].state, 'hub'); assert.equal(snapshot(w).fuel[0], 0);
+  drive(w, 'a', 0.9, 0, 0, false); assert.equal(w.balls[0].state, 'hub');
+  drive(w, 'a', 0.2, 0, 0, false);
+  const b = w.balls[0];
+  assert.equal(b.state, 'field'); assert.ok(b.x < hub.x - 0.6, 'neutral side, x=' + b.x);
+  drive(w, 'a', 1, 0, 0, false);
+  assert.deepEqual(w.score, { red: 1, blue: 0 }, 'not counted again');
+});
+
+test('long random sim: balls stay in the field and out of hubs', { timeout: 20000 }, () => {
+  const w = real(); let seed = 7;
+  const rand = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
+  for (const [id, al] of [['a', 'red'], ['b', 'red'], ['c', 'blue']]) join(w, id, al);
+  for (const r of w.robots.values()) { place(r, (rand() - 0.5) * 3, (rand() - 0.5) * 3, rand() * 6); give(w, r, 4); }
+  for (let i = 0; i < 2000; i++) {
+    if (i % 20 === 0) for (const id of ['a', 'b', 'c']) setInput(w, id, rand() * 2 - 0.7, rand() * 2 - 1, rand() < 0.5);
+    else for (const id of ['a', 'b', 'c']) w.robots.get(id).inputAt = w.time;
+    step(w, DT);
+    for (const b of w.balls) if (b.state === 'field') {
+      assert.ok(Math.abs(b.x) <= FIELD.length / 2 - FUEL.radius + 1e-9 && Math.abs(b.y) <= FIELD.width / 2 - FUEL.radius + 1e-9, `ball outside field step ${i}: ${b.x},${b.y}`);
+    }
+  }
+  for (const b of w.balls) if (b.state === 'field' && b.z < 1.829) for (const h of HUBS) {
+    assert.ok(Math.abs(b.x - h.x) > 0.591 + 0.07 || Math.abs(b.y - h.y) > 0.597 + 0.07, `ball inside hub ${b.x},${b.y}`);
+  }
+  assert.ok(w.balls.some((b) => b.state === 'field'));
+});
+
+test('removing a robot drops its balls on the field', { timeout: 5000 }, () => {
+  const w = fw(far(5)); const r = join(w, 'a'); place(r, 1, 1, 0); give(w, r, 3);
+  removeRobot(w, 'a');
+  const dropped = w.balls.filter((b) => Math.hypot(b.x - 1, b.y - 1) < 0.5);
+  assert.equal(dropped.length, 3); assert.ok(dropped.every((b) => b.state === 'field'));
+  assert.equal(snapshot(w).fuel.filter((f) => f === 0).length, 0);
+});
+
+test('shoot must be boolean true; input timeout clears it', { timeout: 5000 }, () => {
+  const w = fw(far(8)); const r = join(w, 'a');
+  for (const bad of [1, 'true', null, undefined, {}]) { setInput(w, 'a', 0, 0, bad); assert.equal(r.shoot, false); }
+  setInput(w, 'a', 0, 0, true); assert.equal(r.shoot, true);
+  run(w, 0.5); assert.equal(r.shoot, false);
+});
+
+test('fire rate is 4 shots per second', { timeout: 5000 }, () => {
+  const w = fw(far(8), { shooter: { x: 0.2, z: 0.55, angle: 1.05, speed: 6 } }); const r = join(w, 'a'); place(r, 0, 0, 0); give(w, r, 8);
+  drive(w, 'a', 0.9, 0, 0, true);
+  assert.equal(r.held, 4);
+});
+
+test('snapshot has fuel, score and held', { timeout: 5000 }, () => {
+  const w = real(); const r = join(w, 'a', 'red'); give(w, r, 2);
+  const s = snapshot(w);
+  assert.equal(s.fuel.length, FUEL.pool);
+  assert.equal(s.fuel.filter((f) => f === 0).length, 2);
+  assert.deepEqual(s.fuel[99].map((v) => v), s.fuel[99].map((v) => Math.round(v * 100) / 100));
+  assert.deepEqual(s.score, { red: 0, blue: 0 }); assert.equal(s.robots[0].held, 2);
 });

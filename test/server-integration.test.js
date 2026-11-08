@@ -166,3 +166,15 @@ test('injected LAN filter is wired into HTTP and upgrade', { timeout: 5000 }, as
     }));
   } finally { await s2.close(); }
 });
+
+test('state carries fuel, score and per-robot held', { timeout: 10000 }, async () => {
+  const a = await client();
+  assert.equal((await join(a, 'Fuel', 'red')).t, 'welcome');
+  const s = await a.next((m) => m.t === 'state' && m.robots.length >= 1);
+  assert.equal(s.fuel.length, 100);
+  assert.ok(s.fuel.every((f) => Array.isArray(f) && f.length === 3));
+  assert.deepEqual(s.score, { red: 0, blue: 0 });
+  assert.equal(s.robots[0].held, 0);
+  a.send({ t: 'input', fwd: 0, turn: 0, shoot: true }); // accepted, nothing held
+  a.ws.close();
+});

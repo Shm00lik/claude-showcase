@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadGlb } from '../tools/inspect-glb.mjs';
-import { FIELD, ROBOT, OBSTACLES, BUMPS, SPAWNS, FIELD_MODEL, ROBOT_MODEL, toThree } from '../shared/field.js';
+import { FIELD, ROBOT, OBSTACLES, BUMPS, SPAWNS, FIELD_MODEL, ROBOT_MODEL, FUEL, FUEL_START, HUBS, SHOOTER, toThree } from '../shared/field.js';
 
 const corners = (x, y, len, wid, rot) => {
   const c = Math.cos(rot), s = Math.sin(rot);
@@ -68,4 +68,23 @@ test('CAD blue-coloured bump/skirt plastic ends up on the blue (-x) side after F
   }
   assert.ok(sum.blue < 0, 'blue plastic must be at -x');
   assert.ok(sum.red > 0, 'red plastic must be at +x');
+});
+
+test('FUEL_START: pool entries, inside the field, clear of obstacles', () => {
+  assert.equal(FUEL_START.length, FUEL.pool);
+  for (const p of FUEL_START) {
+    assert.ok(Math.abs(p.x) <= FIELD.length / 2 - FUEL.radius && Math.abs(p.y) <= FIELD.width / 2 - FUEL.radius, 'inside');
+    for (const o of OBSTACLES) assert.ok(!overlap(corners(p.x, p.y, 2 * FUEL.radius, 2 * FUEL.radius, 0), rectOf(o)), `fuel at ${p.x},${p.y} overlaps ${o.name}`);
+  }
+});
+
+test('HUBS sit on the hub obstacles; SHOOTER ball crosses the rim descending at 2.5 m', () => {
+  for (const h of HUBS) {
+    const o = OBSTACLES.find((q) => q.name === h.alliance + '_hub');
+    assert.ok(o && o.x === h.x && o.y === h.y && h.radius < o.wid / 2 && h.top > 1.5 && h.top < 2.2);
+  }
+  const { x, z, angle, speed } = SHOOTER, d = 2.5 - x, h = HUBS[0];
+  const t = d / (speed * Math.cos(angle));
+  assert.ok(Math.abs(z + speed * Math.sin(angle) * t - 4.905 * t * t - h.top) < 0.01, 'height at the hub centre');
+  assert.ok(speed * Math.sin(angle) - 9.81 * t < 0, 'descending');
 });
