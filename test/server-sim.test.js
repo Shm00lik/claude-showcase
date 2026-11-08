@@ -209,6 +209,7 @@ test('long random sim: balls stay in the field and out of hubs', { timeout: 2000
   const rand = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
   for (const [id, al] of [['a', 'red'], ['b', 'red'], ['c', 'blue']]) join(w, id, al);
   for (const r of w.robots.values()) { place(r, (rand() - 0.5) * 3, (rand() - 0.5) * 3, rand() * 6); give(w, r, 4); }
+  Object.assign(w.balls[0], { x: 6, y: 0.3, z: 1.5, vx: 6 }); Object.assign(w.balls[1], { x: -6, y: -0.3, z: 1.5, vx: -6 }); // lobbed at the towers
   for (let i = 0; i < 2000; i++) {
     if (i % 20 === 0) for (const id of ['a', 'b', 'c']) setInput(w, id, rand() * 2 - 0.7, rand() * 2 - 1, rand() < 0.5);
     else for (const id of ['a', 'b', 'c']) w.robots.get(id).inputAt = w.time;
