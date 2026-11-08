@@ -185,6 +185,9 @@ test('shoot from 2.5 m facing own hub scores; from 6 m does not', { timeout: 100
   drive(w2, 'a', 3, 0, 0, true);
   assert.deepEqual(w2.score, { red: 0, blue: 0 });
   assert.equal(w2.balls.filter((b) => b.state === 'field').length, 3, 'shot ball is back on the field');
+  const w3 = real({ fuelStart: far(3) }); const r3 = join(w3, 'a', 'red'); place(r3, hub.x - 2.5, 1.2, 0); give(w3, r3, 1); // passes beside the opening
+  drive(w3, 'a', 2, 0, 0, true);
+  assert.deepEqual(w3.score, { red: 0, blue: 0 });
 });
 
 test('scored ball sits in hub, then returns on the neutral side', { timeout: 10000 }, () => {
