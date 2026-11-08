@@ -176,5 +176,7 @@ test('state carries fuel, score and per-robot held', { timeout: 10000 }, async (
   assert.deepEqual(s.score, { red: 0, blue: 0 });
   assert.equal(s.robots[0].held, 0);
   a.send({ t: 'input', fwd: 0, turn: 0, shoot: true }); // accepted, nothing held
+  const n = await a.next((m) => m.t === 'state' && m.time > s.time);
+  assert.equal(n.robots[0].held, 0);
   a.ws.close();
 });
