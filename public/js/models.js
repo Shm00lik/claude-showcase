@@ -14,6 +14,7 @@ function applyModel(obj, m) {
 }
 
 const underBumper = o => { for (; o; o = o.parent) if (/bumper/i.test(o.name)) return true; return false; };
+const underFuel = o => { for (; o; o = o.parent) if (/Fuel/.test(o.name)) return true; return false; };
 
 // Bakes `model` transform + node transforms into geometry and merges all meshes sharing a material.
 // Bumper-fabric meshes (blue material under a node named *bumper*) get their own material, flagged userData.bumper.
@@ -23,6 +24,7 @@ export function mergeByMaterial(gltfScene, model) {
   const groups = new Map(); // key -> {material, geoms}
   gltfScene.traverse(o => {
     if (!o.isMesh) return;
+    if (underFuel(o)) return; // server simulates the balls; CAD fuel would be phantom
     const src = o.geometry, mat = o.material;
     const bumper = underBumper(o) && mat.color && mat.color.b > 3 * mat.color.r && mat.color.b > 0.2;
     const key = bumper ? 'bumper' : mat;

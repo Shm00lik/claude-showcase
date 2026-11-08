@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { FIELD, ROBOT, BUMPS, toThree } from '/shared/field.js';
+import { FIELD, ROBOT, BUMPS, FUEL, HUBS, toThree } from '/shared/field.js';
 
 const ALLIANCE = { red: '#d01c1c', blue: '#1c4fd0' };
 export const CAMERAS = ['chase', 'driver station', 'top-down'];
@@ -86,6 +86,25 @@ export function createWorld(canvas, fieldGroup, robotTemplate) {
   });
   scene.add(fieldGroup);
 
+  for (const h of HUBS) { // 2.5 m shooting-range hint
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(2.46, 2.54, 96),
+      new THREE.MeshBasicMaterial({ color: ALLIANCE[h.alliance], transparent: true, opacity: 0.5, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+    );
+    const p = toThree(h.x, h.y);
+    ring.rotation.x = -Math.PI / 2; ring.position.set(p.x, 0.012, p.z);
+    scene.add(ring);
+  }
+
+  const balls = new THREE.InstancedMesh(
+    new THREE.SphereGeometry(FUEL.radius, 16, 12),
+    new THREE.MeshStandardMaterial({ color: '#f5d000', roughness: 0.9, metalness: 0 }),
+    FUEL.pool,
+  );
+  balls.castShadow = true; balls.frustumCulled = false;
+  scene.add(balls);
+  const ballM = new THREE.Matrix4(), hiddenM = new THREE.Matrix4().makeScale(0, 0, 0);
+
   const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 200);
   camera.position.set(0, 8, 8);
   let camMode = 0;
@@ -119,7 +138,7 @@ export function createWorld(canvas, fieldGroup, robotTemplate) {
     return e;
   }
 
-  function update(poses, ownId, dt) {
+  function update(poses, ownId, dt, fuel = []) {
     const seen = new Set();
     for (const r of poses) {
       seen.add(r.id);
@@ -132,6 +151,12 @@ export function createWorld(canvas, fieldGroup, robotTemplate) {
     for (const [id, e] of robots) if (!seen.has(id)) {
       scene.remove(e.root, e.label); e.label.material.map.dispose(); e.label.material.dispose(); robots.delete(id);
     }
+    for (let i = 0; i < FUEL.pool; i++) {
+      const f = fuel[i];
+      if (f) { const p = toThree(f[0], f[1]); balls.setMatrixAt(i, ballM.makeTranslation(p.x, f[2], p.z)); }
+      else balls.setMatrixAt(i, hiddenM);
+    }
+    balls.instanceMatrix.needsUpdate = true;
     const me = poses.find(r => r.id === ownId);
     if (me) aimCamera(me); // else keep last camera
     const k = 1 - Math.exp(-dt * (camMode === 0 ? 6 : 3));

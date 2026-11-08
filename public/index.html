@@ -42,10 +42,13 @@
 </main>
 
 <div id="hud" hidden>
+  <div id="score" hidden><b class="red" id="scoreRed">0</b><span>:</span><b class="blue" id="scoreBlue">0</b></div>
+  <div id="fuel" hidden></div>
   <div id="status"><i></i><span id="statusText">Connecting</span> <b id="fps"></b></div>
   <ul id="players"></ul>
   <div id="help">
     <b>W/S</b> or <b>&uarr;/&darr;</b> drive &middot; <b>A/D</b> or <b>&larr;/&rarr;</b> turn &middot; gamepad: left stick drive, right stick turn<br>
+    <b>Space</b> / <b>RT</b>: shoot &middot; drive into FUEL with the front bumper to collect it<br>
     <b>R</b> respawn &middot; <b>C</b> camera: <span id="cam">chase</span>
   </div>
 </div>

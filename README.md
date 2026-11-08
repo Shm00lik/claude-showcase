@@ -2,11 +2,13 @@
 
 A multiplayer driving simulator for the **2026 FRC game (REBUILT)**. Up to six people on the same local
 network open a web page in Chrome, choose a name, team number and alliance, and drive a **2026 KitBot**
-around the **official 2026 field CAD** while seeing each other live.
+around the **official 2026 field CAD** while seeing each other live. Robots **collect FUEL** by driving into it
+and **shoot it into their alliance's HUB** to score.
 
-This version is driving only: no shooting, intake, scoring or match timer.
+![Gameplay: 3v3, collecting and shooting FUEL](docs/media/gameplay.gif)
 
-![3v3 on the 2026 field, chase camera](docs/images/02-chase-cam-3v3.jpg)
+**Full 60-second gameplay video:** [docs/media/gameplay.mp4](docs/media/gameplay.mp4) (chase, driver-station and
+top-down cameras; one keyboard player plus five scripted bots).
 
 | Join screen | Driver-station camera | Top-down camera |
 |---|---|---|
@@ -63,6 +65,7 @@ On Windows PowerShell, use `$env:PORT=8080; npm start` instead.
 | Drive forward / back | `W` / `S` or `↑` / `↓` | Left stick, up/down |
 | Turn left / right | `A` / `D` or `←` / `→` | Right stick, left/right |
 | Respawn at your alliance's start | `R` | — |
+| Shoot (hold) | `Space` | Right trigger or `A` |
 | Change camera | `C` | — |
 
 The robot uses **arcade drive** on a differential (tank) drivetrain, like the real KitBot. Its top speed
@@ -89,6 +92,14 @@ join screen with your details filled in; click **Drive!** again to rejoin.
   **field perimeter**.
 - The **bumps** next to each hub are drivable. Your robot visually rides up and over them.
 - The **trench** lanes along the side walls are open to drive under.
+- **FUEL:** 100 balls start in the neutral zone. Drive into a ball with your **front bumper** to collect it
+  (up to 8; the HUD shows `FUEL n/8`). Touching a ball with the side or back pushes it instead.
+- **Shooting:** hold Space to fire 4 balls per second. The shooter is fixed (no aiming of speed or angle), so
+  distance matters: shots from about **2.0–2.9 m** from the hub centre go in. The ring around each hub marks
+  the 2.5 m sweet spot. Face the hub and shoot.
+- **Scoring:** a ball that drops into a HUB scores 1 point for that hub's alliance (red hub is in front of the
+  red spawns). The ball comes back out of the hub toward the field centre a second later. The score is shown at
+  the top and resets only when the server restarts.
 - The server owns all physics. Every player sees the same positions, updated 30 times a second and
   smoothed with 100 ms of interpolation.
 
@@ -142,7 +153,7 @@ There are no accounts, nothing is stored on disk, and the server never contacts 
 ```
 server/
   index.js      HTTP static server + WebSocket game server (LAN filter, protocol, 60 Hz sim loop, 30 Hz broadcast)
-  sim.js        Pure 2D simulation: differential drive, SAT collisions, spawns
+  sim.js        Pure simulation: differential drive, SAT collisions, spawns, FUEL ball physics, shooting, scoring
   lan.js        Private-address, Host and Origin checks
 shared/
   field.js      Field size, robot size, obstacles, bumps, spawns, model placement (used by server AND browser)
@@ -155,9 +166,11 @@ public/
   assets/       The 2026 field and KitBot models
 tools/
   inspect-glb.mjs   CAD inspector used to derive shared/field.js
+  record-gameplay.mjs  Bots + Chrome screencast recorder used for docs/media
 test/           node:test suites (sim, LAN filter, integration, field geometry)
 docs/
   images/       Screenshots
+  media/        Gameplay video and GIF
   state/        Design doc and project state / decisions
 ```
 
@@ -174,9 +187,10 @@ radians counter-clockwise.
 npm test
 ```
 
-The suite has 34 tests across four files:
+The suite has 48 tests across four files:
 - **Simulation:** driving, slew limits, obstacle, robot and perimeter collisions, input timeout, spawns,
-  alliance cap.
+  alliance cap; FUEL intake (front only, capacity), shooting range, scoring, hub exit, dropped balls, and a long
+  random run that checks no ball is lost, duplicated or stuck in an obstacle.
 - **LAN, Host and Origin filters.**
 - **Live server integration:** two clients seeing each other move, rejects, path traversal,
   connection cap, message-rate limit, DNS-rebinding refusal.
@@ -192,9 +206,21 @@ Dependencies:
 - **Obstacles and spawns:** `shared/field.js`.
 - **Lighting and cameras:** `public/js/world.js`.
 
+### Recording a gameplay video
+
+`tools/record-gameplay.mjs` starts five scripted bots plus a Chrome window driven by the same AI, and saves the
+frames through Chrome's DevTools screencast. With the server running:
+
+```bash
+node tools/record-gameplay.mjs . tmp/rec 60
+```
+
+It expects Chrome at `C:/Program Files/Google/Chrome/Application/chrome.exe`; change the path at the top of the
+Chrome section for other systems. Encode the frames with ffmpeg (see `tmp/rec/frames.json` for timestamps).
+
 ### Not in this version
-- Shooting, intake and FUEL game pieces. The FUEL in the field model is scenery only.
-- Scoring and the match timer.
+- Match timer, hub active/inactive shifts, depots, outposts, human players and climbing.
+- Aiming: the shooter has one fixed speed and angle.
 - Spectators.
 - Client-side prediction. On a LAN, latency is a few milliseconds.
 - Mobile and touch controls.
