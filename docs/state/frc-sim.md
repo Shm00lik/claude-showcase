@@ -34,3 +34,21 @@ field CAD. Driving only. Git repo with worktrees/commits, README, visual example
 - Live run on main in Chrome (built-in browser, 1280x720): 6 robots (1 keyboard driver + 5 scripted ws clients) joined 3v3, driving/turning/collision with hub confirmed via server state (`W` from x=6,h=π → x=4.65; `A` → h 3.14→4.72; stopped at red hub edge x≈4.24+0.42).
 - From the LAN IP: `GET http://192.168.1.44:3000/` 200; KitBot GLB 200 `model/gltf-binary` 21,270,876 B; Host `evil.example` → 403; `/../package.json` → 404.
 - Not verified: frame rate (the browser pane was hidden, which throttles rAF to ~1 Hz; the 16-18 fps HUD reading is not meaningful); real gamepad; two physical machines on a LAN.
+
+## v2: FUEL collect + shoot (requested 2026-11-08)
+Owner asked: "add collecting and shooting balls at the target" and a gameplay video. Design: v2 section of
+`frc-sim_design.md`. Classified big (wire contract + sim); scaled: lead wrote the design addendum from the existing
+contract, one review per batch, acceptance live before close.
+
+### Decided for you - overrule if you disagree
+11. **Auto-intake on the front bumper, hold Space to shoot (4 balls/s), capacity 8.** Alternative: intake button.
+12. **Fixed shooter (no aiming of pitch/speed); sweet spot 2.5 m from the hub, shown as a ring.** Alternative: variable speed by distance (auto-aim).
+13. **100 FUEL on the field, starting as a grid in the neutral zone; scored FUEL exits the hub back toward the centre after 1 s.** Alternative: the real REBUILT layout (depots, outposts, ~400 fuel).
+14. **Any ball entering a hub scores for that hub's alliance (no own-goal rules), score never resets while the server runs.** Alternative: match timer with reset.
+15. **No hub active/inactive shifts.**
+
+### Plan (status)
+- [ ] S2 server (`feat/fuel-server`), C2 client (`feat/fuel-client`) in parallel worktrees
+- [ ] Review per batch, fix rounds
+- [ ] Merge, gates, live acceptance
+- [ ] Gameplay video (`docs/media/`), README

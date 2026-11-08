@@ -106,3 +106,79 @@ inside its root (else 404). MIME: `.html`, `.js` → `text/javascript`, `.css`, 
   `C` cycle camera: chase → driver-station view (from own alliance wall) → top-down.
 - HUD: connection status, player list with alliance colors, controls help.
 - Lights/shadows: hemisphere + directional; no heavy post-processing.
+
+---
+
+# v2: FUEL — collect and shoot (contract for batches S2 and C2)
+
+Goal: robots pick up FUEL (yellow foam balls) by driving into them and shoot them into their own alliance's
+HUB for points. Non-goals: hub active/inactive shifts, match timer, depot/outpost/human player, climbing,
+aiming turret, 3D robot-vs-ball physics beyond what is listed.
+
+## Ownership
+| Path | Batch |
+|---|---|
+| `shared/field.js` (new FUEL/HUB exports only; existing exports unchanged), `server/*.js`, `test/server-*.test.js`, `test/field.test.js` | **S2** |
+| `public/index.html`, `public/css/*`, `public/js/*` | **C2** |
+
+## `shared/field.js` additions (S2 writes them; C2 builds against these names)
+```js
+export const FUEL = { radius: 0.075, pool: 100, capacity: 8 };   // 5.91 in ball; 100 balls total; 8 per robot
+export const FUEL_START = [{x,y}, ...];  // pool entries: 10x10 grid, 0.3 m spacing, centred on (0,0) (neutral zone)
+export const HUBS = [                     // scoring targets, measured from the CAD hub top (inspect-glb.mjs)
+  { alliance: 'red',  x: 3.645, y: 0, top: <m>, radius: <m> },   // top = height of the opening rim,
+  { alliance: 'blue', x: -3.645, y: 0, top: <m>, radius: <m> },  // radius = inscribed radius of the opening
+];
+export const SHOOTER = { x: <m>, z: <m>, angle: <rad>, speed: <m/s> }; // launch point in robot frame
+                                                                        // (x fwd of robot centre, z up), fixed
+                                                                        // pitch and exit speed
+```
+Red scores in the red hub (x>0, red side, in front of red spawns), blue in the blue hub.
+`SHOOTER.speed` is chosen so a ball fired from a stationary robot whose centre is **2.5 m** from the hub centre,
+facing it, scores; the client draws a hint ring of radius 2.5 m around each hub.
+
+## Ball simulation (server, `server/sim.js`, pure, inside `step`)
+Each pool ball: `{x,y,z,vx,vy,vz, state:'field'|'held'|'hub', owner?, until?}`. Order per step, after robots:
+1. Integrate field balls: gravity 9.81 when airborne; ground at `z = radius`, vertical restitution 0.4, stop
+   bouncing below 0.3 m/s; rolling deceleration 2 m/s² on the ground.
+2. Score: a field ball moving down (`vz<0`) that crosses `z = hub.top` with horizontal distance to the hub
+   centre `< hub.radius` → `state='hub'`, `until = time + 1000 ms`, `score[hub.alliance]++`.
+3. Hub exit: when `time >= until`, the ball reappears on the ground just outside the hub on the neutral-zone side
+   (x toward 0), with 1-2 m/s velocity toward field centre and ±0.6 m lateral spread (deterministic per ball id
+   is fine). It does not count again until shot again.
+4. Ball vs obstacle (circle vs OBB in 2D, only while `z < blockHeight`, blockHeight = `hub.top` for hubs, 1.0 m
+   for other obstacles): push out, reflect the normal velocity with restitution 0.5.
+5. Ball vs perimeter: reflect with restitution 0.5, keep inside.
+6. Ball vs robot (only while `z < ROBOT.height`): if the contact is on the robot's **front face** (ball centre in
+   robot frame has local x > length/2 − radius, |local y| < width/2) and the robot holds `< capacity` →
+   `state='held'`, `held++`. Otherwise push the ball out of the robot OBB and give it the robot's velocity plus
+   the reflected normal component.
+7. Ball vs ball (both `z < 0.3`): separate overlapping pairs equally and exchange the normal velocity
+   (restitution 0.5). O(n²) on 100 balls is fine.
+
+Shooting: robots get `shoot` (bool) and `held` (int), `nextShot` (ms). While `shoot && held>0 &&
+time>=nextShot`: take one held ball, place it at the shooter point (`SHOOTER.x` forward of the robot centre,
+height `SHOOTER.z`), velocity = `speed·cos(angle)` along the heading + robot velocity, `vz = speed·sin(angle)`;
+`held--`, `nextShot = time + 250`. Input timeout (300 ms) also clears `shoot`.
+On `removeRobot`, its held balls drop to the field at its position (small random scatter). Respawn keeps `held`.
+`score` lives on the world and is never reset while the server runs.
+
+## Wire protocol changes (additive)
+- Client → server: `{"t":"input","fwd","turn","shoot":boolean}`; `shoot` missing or non-boolean → `false`.
+- Server → client `state` gains:
+  - `robots[i].held` (int 0..capacity)
+  - `fuel`: array of length `FUEL.pool`, by pool index: `[x,y,z]` (rounded to 0.01 m) when on the field, `0` when
+    held or inside a hub. Fixed indices let the client interpolate per ball.
+  - `score`: `{"red":int,"blue":int}`
+- Snapshot size ≈ 2 KB at 30 Hz; the 64 KB `bufferedAmount` skip still applies.
+
+## Client (C2)
+- Hide the CAD's scenery fuel: skip nodes whose name or ancestor name matches `/Fuel/` before merging the field.
+- Render balls with one `InstancedMesh` (sphere r=0.075, yellow `#f5d000`, matte), interpolated per index between
+  snapshots like robots; entries `0` (or missing in either snapshot) hidden (scale 0) — no interpolation across a
+  `0`→value change.
+- Shoot input: hold `Space`, gamepad right trigger (button 7) or A (button 0). Sent in the existing input message,
+  including in the throttled resend; cleared on blur/hidden like fwd/turn.
+- HUD: large score banner (red vs blue) at the top; own `FUEL n/8` indicator; controls help adds Space.
+- Ground hint ring radius 2.5 m (thin, semi-transparent, alliance colour) around each hub.
+- Robot label shows held count only if cheap; not required.
