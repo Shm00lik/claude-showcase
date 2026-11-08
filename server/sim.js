@@ -151,6 +151,7 @@ function stepBalls(w, dt, rs) {
   for (const r of rs) { // shooting: one held ball every SHOT_INTERVAL_MS
     if (!r.shoot || !r.held || !sh || w.time < r.nextShot) continue;
     const b = balls.find((q) => q.state === 'held' && q.owner === r.id);
+    if (!b) { r.held = 0; continue; } // broken invariant must never throw in the server loop
     const c = Math.cos(r.h), s = Math.sin(r.h), vh = sh.speed * Math.cos(sh.angle) + r.v;
     Object.assign(b, { state: 'field', owner: undefined, x: r.x + c * sh.x, y: r.y + s * sh.x, z: sh.z, vx: c * vh, vy: s * vh, vz: sh.speed * Math.sin(sh.angle) });
     r.held--; r.nextShot = w.time + SHOT_INTERVAL_MS;
@@ -181,7 +182,9 @@ function stepBalls(w, dt, rs) {
     for (const o of w.obstacles) {
       const hub = w.hubs.find((h) => o.name === h.alliance + '_hub');
       if (b.z >= (hub ? hub.top : BLOCK_H)) continue;
-      const n = circleObb(b.x, b.y, R, obb(o.x, o.y, o.rot, o.len, o.wid));
+      // obstacles touching the perimeter extend 0.5 m past the wall for balls, so the wall side is never the nearest exit (rot 0 only)
+      const ex = Math.abs(o.x) + o.len / 2 >= w.field.length / 2 - 1e-3, ey = Math.abs(o.y) + o.wid / 2 >= w.field.width / 2 - 1e-3;
+      const n = circleObb(b.x, b.y, R, obb(o.x + (ex ? Math.sign(o.x) * 0.5 : 0), o.y + (ey ? Math.sign(o.y) * 0.5 : 0), o.rot, o.len + (ex ? 1 : 0), o.wid + (ey ? 1 : 0)));
       if (n) bounce(b, n, 0, 0, 0.5);
     }
     if (b.z < w.robot.height) for (const r of rs) {

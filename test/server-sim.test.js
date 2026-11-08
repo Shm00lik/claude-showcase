@@ -213,7 +213,9 @@ test('long random sim: balls stay in the field and out of hubs', { timeout: 2000
     if (i % 20 === 0) for (const id of ['a', 'b', 'c']) setInput(w, id, rand() * 2 - 0.7, rand() * 2 - 1, rand() < 0.5);
     else for (const id of ['a', 'b', 'c']) w.robots.get(id).inputAt = w.time;
     step(w, DT);
+    assert.equal([...w.robots.values()].reduce((n, r) => n + r.held, 0), w.balls.filter((b) => b.state === 'held').length, `held invariant step ${i}`);
     for (const b of w.balls) if (b.state === 'field') {
+      for (const o of OBSTACLES) assert.ok(b.z >= (o.name.endsWith('_hub') ? 1.829 : 1.0) || Math.abs(b.x - o.x) > o.len / 2 - 0.01 || Math.abs(b.y - o.y) > o.wid / 2 - 0.01, `ball inside ${o.name} step ${i}: ${b.x},${b.y},${b.z}`);
       assert.ok(Math.abs(b.x) <= FIELD.length / 2 - FUEL.radius + 1e-9 && Math.abs(b.y) <= FIELD.width / 2 - FUEL.radius + 1e-9, `ball outside field step ${i}: ${b.x},${b.y}`);
     }
   }
@@ -251,4 +253,12 @@ test('snapshot has fuel, score and held', { timeout: 5000 }, () => {
   assert.equal(s.fuel.filter((f) => f === 0).length, 2);
   assert.deepEqual(s.fuel[99].map((v) => v), s.fuel[99].map((v) => Math.round(v * 100) / 100));
   assert.deepEqual(s.score, { red: 0, blue: 0 }); assert.equal(s.robots[0].held, 2);
+});
+
+test('ball hitting the wall above an obstacle does not get stuck inside it', { timeout: 5000 }, () => {
+  const w = real({ fuelStart: [{ x: 6, y: 0.3 }] }); const b = w.balls[0];
+  Object.assign(b, { z: 1.5, vx: 6 });
+  run(w, 3);
+  const t = OBSTACLES.find((o) => o.name === 'red_tower');
+  assert.ok(Math.abs(b.x - t.x) > t.len / 2 || Math.abs(b.y - t.y) > t.wid / 2, `ball inside tower at ${b.x},${b.y}`);
 });
