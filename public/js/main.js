@@ -1,4 +1,4 @@
-import { FIELD_MODEL, ROBOT_MODEL } from '/shared/field.js';
+import { FIELD_MODEL, ROBOT_MODEL, FUEL } from '/shared/field.js';
 import { loadGLB, mergeByMaterial, mergeVertexColors } from './models.js';
 import { createWorld } from './world.js';
 import { readInput, setInputEnabled, clearInput } from './input.js';
@@ -69,7 +69,7 @@ loadAssets();
 let ws = null, myId = null, inGame = false, sentKey = '';
 const snaps = [];
 let offset = null; // receipt-time offset: local now - server time
-let roster = '';
+let roster = '', hudKey = '';
 
 $('joinForm').addEventListener('submit', e => {
   e.preventDefault();
@@ -105,39 +105,45 @@ function connect(join) {
 function onState(m) {
   const d = performance.now() - m.time;
   offset = offset === null || d < offset ? d : offset + (d - offset) * 0.01;
-  snaps.push({ t: m.time, robots: m.robots });
+  snaps.push({ t: m.time, robots: m.robots, fuel: Array.isArray(m.fuel) ? m.fuel : null, score: m.score });
   if (snaps.length > 40) snaps.shift();
 }
 
 const lerp = (a, b, k) => a + (b - a) * k;
 function sample() {
-  if (!snaps.length) return [];
+  if (!snaps.length) return { poses: [], fuel: [] };
   const rt = performance.now() - offset - 100; // render in the server's past
   let i = snaps.length - 1;
   while (i > 0 && snaps[i].t > rt) i--;
   const a = snaps[i], b = snaps[Math.min(i + 1, snaps.length - 1)];
   const k = b.t > a.t ? Math.max(0, Math.min(1, (rt - a.t) / (b.t - a.t))) : 1;
-  return b.robots.map(rb => {
+  const fuel = b.fuel ? b.fuel.map((fb, j) => {
+    const fa = a.fuel?.[j];
+    if (!Array.isArray(fb) || !Array.isArray(fa)) return null; // held/in hub/missing: hidden, never slid in or out
+    return [lerp(fa[0], fb[0], k), lerp(fa[1], fb[1], k), lerp(fa[2], fb[2], k)];
+  }) : [];
+  const poses = b.robots.map(rb => {
     const ra = a.robots.find(r => r.id === rb.id);
     if (!ra || Math.hypot(rb.x - ra.x, rb.y - ra.y) > 0.5) return rb; // new or respawned: no sliding
     let dh = (rb.h - ra.h) % (2 * Math.PI);
     if (dh > Math.PI) dh -= 2 * Math.PI; else if (dh < -Math.PI) dh += 2 * Math.PI;
     return { ...rb, x: lerp(ra.x, rb.x, k), y: lerp(ra.y, rb.y, k), h: ra.h + dh * k };
   });
+  return { poses, fuel };
 }
 
 function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
 let lastSent = 0;
 function pushInput(force) {
-  const { fwd, turn } = readInput();
-  const key = `${fwd.toFixed(3)},${turn.toFixed(3)}`, now = performance.now();
+  const { fwd, turn, shoot } = readInput();
+  const key = `${fwd.toFixed(3)},${turn.toFixed(3)},${shoot}`, now = performance.now();
   // on change at most every 50 ms (server drops sockets over 60 msg/s); the next frame retries
-  if (force || (key !== sentKey && now - lastSent >= 50)) { sentKey = key; lastSent = now; send({ t: 'input', fwd, turn }); }
+  if (force || (key !== sentKey && now - lastSent >= 50)) { sentKey = key; lastSent = now; send({ t: 'input', fwd, turn, shoot }); }
 }
 // keepalive: server zeroes input after 300 ms of silence
 setInterval(() => { if (inGame) pushInput(true); }, 100);
 
-function zero() { clearInput(); sentKey = '0.000,0.000'; send({ t: 'input', fwd: 0, turn: 0 }); }
+function zero() { clearInput(); sentKey = '0.000,0.000,false'; send({ t: 'input', fwd: 0, turn: 0, shoot: false }); }
 addEventListener('blur', () => inGame && zero());
 document.addEventListener('visibilitychange', () => document.hidden && inGame && zero());
 
@@ -152,7 +158,7 @@ function enterGame() {
   inGame = true; setInputEnabled(true);
   joinEl.hidden = true; hud.hidden = false;
   $('status').classList.remove('off'); $('statusText').textContent = 'Connected';
-  say(''); roster = ''; $('cam').textContent = world.cameraName;
+  say(''); roster = ''; hudKey = ''; $('cam').textContent = world.cameraName;
   last = performance.now(); requestAnimationFrame(frame);
 }
 function leaveGame() {
@@ -174,15 +180,27 @@ function renderRoster(poses) {
   }
 }
 
+function renderScore(poses) {
+  const score = snaps.at(-1)?.score, held = poses.find(p => p.id === myId)?.held;
+  const key = `${score?.red}|${score?.blue}|${held}`;
+  if (key === hudKey) return;
+  hudKey = key;
+  $('score').hidden = !score;
+  if (score) { $('scoreRed').textContent = score.red; $('scoreBlue').textContent = score.blue; }
+  $('fuel').hidden = held === undefined;
+  $('fuel').textContent = `FUEL ${held}/${FUEL.capacity}`;
+}
+
 let last = 0, calls = 0, fpsAcc = 0, fpsN = 0;
 function frame(now) {
   if (!inGame) return;
   requestAnimationFrame(frame);
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   pushInput(false);
-  const poses = sample();
+  const { poses, fuel } = sample();
   renderRoster(poses);
-  world.update(poses, myId, dt);
+  renderScore(poses);
+  world.update(poses, myId, dt, fuel);
   calls = world.drawCalls();
   fpsAcc += dt; fpsN++;
   if (fpsAcc >= 1) { $('fps').textContent = `${Math.round(fpsN / fpsAcc)} fps · ${calls} calls`; fpsAcc = fpsN = 0; }
