@@ -37,6 +37,12 @@ legend{font-size:13px;color:var(--dim);padding:0;margin-bottom:4px}
 #players li.blue{border-color:var(--blue)}
 #players li.me{background:#ffffff14}
 #players .t{color:var(--dim);font-variant-numeric:tabular-nums}
+#score{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:14px;align-items:center;background:#0b0e13b0;padding:4px 22px;border-radius:12px;font-size:40px;font-weight:800;font-variant-numeric:tabular-nums}
+#score span{color:var(--dim)}
+#score .red{color:#ff5a5a}
+#score .blue{color:#5a8cff}
+#fuel{position:absolute;top:66px;left:50%;transform:translateX(-50%);background:#0b0e13b0;padding:6px 14px;border-radius:8px;font-size:18px;font-weight:700;color:#f5d000;font-variant-numeric:tabular-nums}
+#score[hidden],#fuel[hidden]{display:none}
 #help{position:absolute;left:12px;bottom:12px;background:#0b0e13b0;padding:8px 12px;border-radius:8px;color:var(--dim)}
 #help b{color:var(--text)}
 @media(max-width:600px){#help{display:none}}
