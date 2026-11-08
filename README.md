@@ -8,9 +8,9 @@ Drive a 2026 KitBot, scoop up FUEL and shoot it into your HUB, with up to six fr
 No install for players: open a link in Chrome and drive.
 
 ![Node 22+](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=nodedotjs&logoColor=white)
-![three.js](https://img.shields.io/badge/three.js-0.180-000000?logo=threedotjs)
+![three.js](https://img.shields.io/badge/three.js-0.180-049EF4)
 ![Tests](https://img.shields.io/badge/tests-48%20passing-2ea44f)
-![LAN only](https://img.shields.io/badge/network-LAN%20only-informational)
+![LAN only](https://img.shields.io/badge/network-LAN%20only-0969da)
 ![Built with Claude](https://img.shields.io/badge/built%20with-Claude%20Code-D97757?logo=anthropic&logoColor=white)
 
 <img src="docs/media/gameplay.gif" alt="3v3 gameplay: robots collect yellow FUEL and shoot it into the hub" width="820">
